@@ -2,7 +2,7 @@ name: Alerta de vuelos baratos
 
 on:
   schedule:
-    - cron: "17 11 * * *" # una vez por dia (08:17 hora Argentina)
+    - cron: "17 11 */2 * *" # dia por medio (08:17 hora Argentina)
   workflow_dispatch:
     inputs:
       mail_prueba:
