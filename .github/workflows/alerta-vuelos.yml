@@ -1,0 +1,21 @@
+name: Alerta de vuelos baratos
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # cada 6 horas
+  workflow_dispatch:
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python buscador.py
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_TO: ${{ secrets.ALERT_TO }}
