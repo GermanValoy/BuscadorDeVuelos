@@ -21,5 +21,5 @@ python buscador.py --no-mail               # búsqueda real (requiere SERPAPI_KE
 python buscador.py --demo                  # prueba el envío del mail
 ```
 En GitHub: Actions → "Alerta de vuelos baratos" → *Run workflow*.
-Después corre solo cada 6 horas (≈ 840 búsquedas/mes: con el plan gratis,
-cambiar el cron a cada 24 h).
+Después corre solo una vez por día (≈ 210 búsquedas/mes, entra en el plan gratis).
+Con un plan pago se puede bajar el cron a cada 6 horas.

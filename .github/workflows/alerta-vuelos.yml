@@ -2,7 +2,7 @@ name: Alerta de vuelos baratos
 
 on:
   schedule:
-    - cron: "17 */6 * * *" # cada 6 horas
+    - cron: "17 11 * * *" # una vez por dia (08:17 hora Argentina)
   workflow_dispatch:
 
 jobs:
