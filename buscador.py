@@ -1,12 +1,13 @@
 """Buscador de vuelos baratos con alertas por mail.
 
-Pensado para el plan gratis de SerpApi (250 busquedas por mes). Cada dia hace:
+Pensado para el plan gratis de SerpApi (250 busquedas por mes). Cada dia hace
+unas pocas busquedas de Google Flights con salida y regreso fijos, rotando
+entre todas las combinaciones origen/salida/regreso validas, de modo que en
+pocos dias se recorren todas.
 
-1. Radar (1 busqueda por origen): Google Travel Explore devuelve el viaje de
-   ~2 semanas mas barato de todo el mes, sin fijar fechas.
-2. Fechas exactas (rotativas): Google Flights con salida y regreso fijos. Cada
-   dia prueba unas pocas combinaciones origen/fecha distintas, de modo que en
-   pocos dias se recorren todas.
+Opcional (usar_radar): Google Travel Explore devuelve con 1 busqueda por origen
+el viaje mas barato de todo el mes, pero no deja fijar el regreso maximo ni la
+estadia exacta, asi que con fechas acotadas casi siempre se descarta.
 
 Envia un mail cuando algun vuelo cuesta el umbral o menos por persona.
 
@@ -21,6 +22,7 @@ Variables de entorno:
 import argparse
 import json
 import os
+import random
 import smtplib
 import sys
 import urllib.parse
@@ -32,12 +34,12 @@ CONFIG = {
     "origenes": ["EZE", "SCL"],  # Buenos Aires (Ezeiza) y Santiago de Chile
     "destino": "MIA",
     "primera_salida": "2027-02-05",
-    "ultima_salida": "2027-02-15",
-    "estadia_dias": 14,
-    # El radar no deja fijar la estadia exacta: acepta viajes de 14 +/- 2 dias.
-    "tolerancia_estadia": 2,
-    # 2 radares + 5 fechas exactas = 7 busquedas por dia, ~210 por mes.
-    "busquedas_exactas_por_dia": 5,
+    "ultimo_regreso": "2027-02-28",
+    "estadia_min": 10,
+    "estadia_max": 13,
+    # 7 busquedas por dia = ~210 por mes (quedan ~40 para pruebas a mano).
+    "busquedas_exactas_por_dia": 7,
+    "usar_radar": False,  # cada radar suma 1 busqueda por origen por dia
     # Las aerolineas cobran tarifa de adulto desde los 12 anios:
     # 2 adultos + adolescente de 14 = 3 adultos, nena de 6 = 1 menor.
     "adultos": 3,
@@ -110,13 +112,29 @@ def explorar_mes(origen, cfg, api_key):
     } for vuelo in data.get("flights", []) if "price" in vuelo]
 
 
-def fechas_de_hoy(cfg, hoy, todas=False):
-    """Combinaciones (origen, salida) a buscar hoy, rotando dia a dia."""
+def todas_las_fechas(cfg):
+    """Todas las combinaciones (origen, salida, regreso) validas."""
     primera = date.fromisoformat(cfg["primera_salida"])
-    ultima = date.fromisoformat(cfg["ultima_salida"])
-    combos = [(origen, primera + timedelta(days=i))
-              for i in range((ultima - primera).days + 1)
-              for origen in cfg["origenes"]]
+    ultimo = date.fromisoformat(cfg["ultimo_regreso"])
+    combos = []
+    salida = primera
+    while salida + timedelta(days=cfg["estadia_min"]) <= ultimo:
+        for dias in range(cfg["estadia_min"], cfg["estadia_max"] + 1):
+            regreso = salida + timedelta(days=dias)
+            if regreso <= ultimo:
+                combos += [(o, salida, regreso) for o in cfg["origenes"]]
+        salida += timedelta(days=1)
+    return combos
+
+
+def fechas_de_hoy(cfg, hoy, todas=False):
+    """Combinaciones a buscar hoy, rotando dia a dia.
+
+    El orden se mezcla (siempre igual) para que cada dia se prueben fechas y
+    origenes variados: una promo que baja muchas fechas se detecta enseguida.
+    """
+    combos = todas_las_fechas(cfg)
+    random.Random(0).shuffle(combos)
     if todas:
         return combos
     n = min(cfg["busquedas_exactas_por_dia"], len(combos))
@@ -128,9 +146,9 @@ def fecha_valida(v, cfg):
     salida = date.fromisoformat(v["salida"])
     regreso = date.fromisoformat(v["regreso"])
     estadia = (regreso - salida).days
-    return (date.fromisoformat(cfg["primera_salida"]) <= salida
-            <= date.fromisoformat(cfg["ultima_salida"])
-            and abs(estadia - cfg["estadia_dias"]) <= cfg["tolerancia_estadia"])
+    return (salida >= date.fromisoformat(cfg["primera_salida"])
+            and regreso <= date.fromisoformat(cfg["ultimo_regreso"])
+            and cfg["estadia_min"] <= estadia <= cfg["estadia_max"])
 
 
 def demo_fecha(origen, salida, regreso, cfg, api_key=None):
@@ -149,12 +167,12 @@ def demo_fecha(origen, salida, regreso, cfg, api_key=None):
 
 
 def demo_mes(origen, cfg, api_key=None):
-    salida = date(2027, 2, 13 if origen == "EZE" else 2)  # SCL: fuera de rango
+    salida = date(2027, 2, 14 if origen == "EZE" else 20)  # SCL: fuera de rango
     return [{
         "fuente": "radar del mes",
         "origen": origen,
         "salida": salida.isoformat(),
-        "regreso": (salida + timedelta(days=16)).isoformat(),
+        "regreso": (salida + timedelta(days=12)).isoformat(),
         "total": 2300,
         "aerolineas": "Aerolinea Demo",
         "escalas": 1,
@@ -238,10 +256,11 @@ def main():
         sys.exit("Falta SERPAPI_KEY (o usa --demo)")
 
     radar, fecha = (demo_mes, demo_fecha) if args.demo else (explorar_mes, buscar_fecha)
-    tareas = [(f"radar {o}", radar, (o,)) for o in cfg["origenes"]]
-    for origen, salida in fechas_de_hoy(cfg, date.today(), args.todas):
-        regreso = salida + timedelta(days=cfg["estadia_dias"])
-        tareas.append((f"{origen} {salida}", fecha, (origen, salida, regreso)))
+    tareas = [(f"radar {o}", radar, (o,))
+              for o in cfg["origenes"] if cfg["usar_radar"]]
+    for origen, salida, regreso in fechas_de_hoy(cfg, date.today(), args.todas):
+        tareas.append((f"{origen} {salida:%d/%m}-{regreso:%d/%m}", fecha,
+                       (origen, salida, regreso)))
     print(f"Busquedas de hoy ({len(tareas)}): " + ", ".join(t[0] for t in tareas))
 
     pasajeros = cfg["adultos"] + cfg["menores"]
