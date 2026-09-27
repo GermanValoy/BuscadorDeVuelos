@@ -32,7 +32,7 @@ CONFIG = {
     # 2 adultos + adolescente de 14 = 3 adultos, nena de 6 = 1 menor.
     "adultos": 3,
     "menores": 1,
-    "precio_max_por_persona": 500,
+    "precio_max_por_persona": 600,
     "moneda": "USD",
 }
 

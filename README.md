@@ -3,7 +3,7 @@ Buscador de vuelos baratos con alertas por mail.
 
 Busca ida y vuelta Buenos Aires (EZE) → Miami (MIA), salidas del 5 al 11 de
 febrero de 2027, 14 días de estadía, 3 adultos (el adolescente de 14 paga
-tarifa de adulto) + 1 menor. Si encuentra vuelos a USD 500 o menos por persona,
+tarifa de adulto) + 1 menor. Si encuentra vuelos a USD 600 o menos por persona,
 envía un mail. Los parámetros se cambian en `CONFIG` dentro de `buscador.py`.
 
 ## Qué hay que conectar
