@@ -88,14 +88,23 @@ def demo_resultados(salida, regreso, cfg):
     }]
 
 
-def enviar_mail(ofertas, cfg):
+def enviar_mail(ofertas, cfg, prueba=False):
     pasajeros = cfg["adultos"] + cfg["menores"]
-    lineas = [
-        f"Encontre {len(ofertas)} vuelo(s) {cfg['origen']}-{cfg['destino']} "
-        f"a {cfg['moneda']} {cfg['precio_max_por_persona']} o menos por persona "
-        f"(ida y vuelta, {pasajeros} pasajeros):",
-        "",
-    ]
+    if prueba:
+        lineas = [
+            "MAIL DE PRUEBA: el buscador funciona y las alertas te van a llegar aca.",
+            f"Estos son los vuelos mas baratos de hoy (ida y vuelta, {pasajeros} "
+            f"pasajeros), esten o no bajo el tope de {cfg['moneda']} "
+            f"{cfg['precio_max_por_persona']} por persona:",
+            "",
+        ]
+    else:
+        lineas = [
+            f"Encontre {len(ofertas)} vuelo(s) {cfg['origen']}-{cfg['destino']} "
+            f"a {cfg['moneda']} {cfg['precio_max_por_persona']} o menos por persona "
+            f"(ida y vuelta, {pasajeros} pasajeros):",
+            "",
+        ]
     for o in ofertas:
         lineas += [
             f"* {o['salida']} -> {o['regreso']} | {o['aerolineas']} | "
@@ -109,7 +118,7 @@ def enviar_mail(ofertas, cfg):
 
     msg = EmailMessage()
     mejor = ofertas[0]
-    msg["Subject"] = (
+    msg["Subject"] = ("[Prueba] " if prueba else "") + (
         f"Alerta vuelos {cfg['origen']}-{cfg['destino']}: "
         f"{cfg['moneda']} {mejor['por_persona']} por persona"
     )
@@ -130,6 +139,9 @@ def main():
                         help="usa precios de ejemplo en vez de SerpApi")
     parser.add_argument("--umbral", type=float,
                         help="precio maximo por persona (pisa la config)")
+    parser.add_argument("--mail-prueba", action="store_true",
+                        help="envia un mail con los vuelos mas baratos aunque "
+                             "ninguno este bajo el umbral")
     parser.add_argument("--no-mail", action="store_true",
                         help="solo muestra resultados, no envia mail")
     args = parser.parse_args()
@@ -165,6 +177,14 @@ def main():
         print(f"  {v['salida']} -> {v['regreso']}  {cfg['moneda']} {v['total']} "
               f"total / {v['por_persona']} p.p.  {v['aerolineas']} "
               f"({v['escalas']} esc., {v['duracion_h']} h)")
+
+    if not todos:
+        sys.exit("No se obtuvo ningun vuelo: revisa SERPAPI_KEY y los errores de arriba.")
+
+    if args.mail_prueba:
+        enviar_mail(todos[:5], cfg, prueba=True)
+        print(f"Mail de prueba enviado a {os.environ['ALERT_TO']}.")
+        return
 
     ofertas = [v for v in todos
                if v["por_persona"] <= cfg["precio_max_por_persona"]]
