@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from email.message import EmailMessage
 
 CONFIG = {
-    "origen": "EZE",
+    "origenes": ["EZE", "SCL"],  # Buenos Aires (Ezeiza) y Santiago de Chile
     "destino": "MIA",
     "primera_salida": "2027-02-05",
     "dias_flexibles": 7,  # prueba salidas del 5 al 11 de febrero
@@ -37,10 +37,10 @@ CONFIG = {
 }
 
 
-def buscar(salida, regreso, cfg, api_key):
+def buscar(origen, salida, regreso, cfg, api_key):
     params = {
         "engine": "google_flights",
-        "departure_id": cfg["origen"],
+        "departure_id": origen,
         "arrival_id": cfg["destino"],
         "outbound_date": salida.isoformat(),
         "return_date": regreso.isoformat(),
@@ -64,6 +64,7 @@ def buscar(salida, regreso, cfg, api_key):
             continue
         tramos = vuelo["flights"]
         resultados.append({
+            "origen": origen,
             "salida": salida.isoformat(),
             "regreso": regreso.isoformat(),
             "total": vuelo["price"],
@@ -75,9 +76,10 @@ def buscar(salida, regreso, cfg, api_key):
     return resultados
 
 
-def demo_resultados(salida, regreso, cfg):
-    total = 1800 + (salida.day % 3) * 400
+def demo_resultados(origen, salida, regreso, cfg):
+    total = 1800 + (salida.day % 3) * 400 + (300 if origen == "SCL" else 0)
     return [{
+        "origen": origen,
         "salida": salida.isoformat(),
         "regreso": regreso.isoformat(),
         "total": total,
@@ -100,14 +102,15 @@ def enviar_mail(ofertas, cfg, prueba=False):
         ]
     else:
         lineas = [
-            f"Encontre {len(ofertas)} vuelo(s) {cfg['origen']}-{cfg['destino']} "
+            f"Encontre {len(ofertas)} vuelo(s) a {cfg['destino']} "
             f"a {cfg['moneda']} {cfg['precio_max_por_persona']} o menos por persona "
             f"(ida y vuelta, {pasajeros} pasajeros):",
             "",
         ]
     for o in ofertas:
         lineas += [
-            f"* {o['salida']} -> {o['regreso']} | {o['aerolineas']} | "
+            f"* {o['origen']}-{cfg['destino']} | {o['salida']} -> {o['regreso']} | "
+            f"{o['aerolineas']} | "
             f"{o['escalas']} escala(s) | {o['duracion_h']} h",
             f"  Total {cfg['moneda']} {o['total']} "
             f"({cfg['moneda']} {o['por_persona']} por persona)",
@@ -119,7 +122,7 @@ def enviar_mail(ofertas, cfg, prueba=False):
     msg = EmailMessage()
     mejor = ofertas[0]
     msg["Subject"] = ("[Prueba] " if prueba else "") + (
-        f"Alerta vuelos {cfg['origen']}-{cfg['destino']}: "
+        f"Alerta vuelos {mejor['origen']}-{cfg['destino']}: "
         f"{cfg['moneda']} {mejor['por_persona']} por persona"
     )
     msg["From"] = os.environ["SMTP_USER"]
@@ -156,25 +159,27 @@ def main():
     pasajeros = cfg["adultos"] + cfg["menores"]
     primera = date.fromisoformat(cfg["primera_salida"])
     todos = []
-    for i in range(cfg["dias_flexibles"]):
-        salida = primera + timedelta(days=i)
-        regreso = salida + timedelta(days=cfg["estadia_dias"])
-        try:
-            if args.demo:
-                vuelos = demo_resultados(salida, regreso, cfg)
-            else:
-                vuelos = buscar(salida, regreso, cfg, api_key)
-        except Exception as e:  # una fecha que falla no corta la busqueda
-            print(f"{salida}: error {e}", file=sys.stderr)
-            continue
-        for v in vuelos:
-            v["por_persona"] = round(v["total"] / pasajeros)
-        todos += vuelos
+    for origen in cfg["origenes"]:
+        for i in range(cfg["dias_flexibles"]):
+            salida = primera + timedelta(days=i)
+            regreso = salida + timedelta(days=cfg["estadia_dias"])
+            try:
+                if args.demo:
+                    vuelos = demo_resultados(origen, salida, regreso, cfg)
+                else:
+                    vuelos = buscar(origen, salida, regreso, cfg, api_key)
+            except Exception as e:  # una fecha que falla no corta la busqueda
+                print(f"{origen} {salida}: error {e}", file=sys.stderr)
+                continue
+            for v in vuelos:
+                v["por_persona"] = round(v["total"] / pasajeros)
+            todos += vuelos
 
     todos.sort(key=lambda v: v["total"])
     print(f"{len(todos)} vuelos encontrados. Los 10 mas baratos:")
     for v in todos[:10]:
-        print(f"  {v['salida']} -> {v['regreso']}  {cfg['moneda']} {v['total']} "
+        print(f"  {v['origen']}  {v['salida']} -> {v['regreso']}  "
+              f"{cfg['moneda']} {v['total']} "
               f"total / {v['por_persona']} p.p.  {v['aerolineas']} "
               f"({v['escalas']} esc., {v['duracion_h']} h)")
 
@@ -182,7 +187,10 @@ def main():
         sys.exit("No se obtuvo ningun vuelo: revisa SERPAPI_KEY y los errores de arriba.")
 
     if args.mail_prueba:
-        enviar_mail(todos[:5], cfg, prueba=True)
+        # los 3 mas baratos de cada origen
+        muestra = [v for o in cfg["origenes"]
+                   for v in [x for x in todos if x["origen"] == o][:3]]
+        enviar_mail(muestra, cfg, prueba=True)
         print(f"Mail de prueba enviado a {os.environ['ALERT_TO']}.")
         return
 
