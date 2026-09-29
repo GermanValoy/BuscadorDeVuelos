@@ -289,6 +289,11 @@ def main():
     for v in todos[:10]:
         print(f"  {cfg['moneda']} {v['total']} total / {v['por_persona']} p.p.  "
               + texto_vuelo(v, cfg))
+    print("Mas barato por origen:")
+    for o in cfg["origenes"]:
+        mejor = next((v for v in todos if v["origen"] == o), None)
+        print(f"  {o}: " + (f"{cfg['moneda']} {mejor['por_persona']} p.p.  "
+                           + texto_vuelo(mejor, cfg) if mejor else "sin resultados hoy"))
 
     if args.mail_prueba:
         # los 3 mas baratos de cada origen
