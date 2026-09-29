@@ -1,22 +1,25 @@
 # BuscadorDeVuelos
 Buscador de vuelos baratos con alertas por mail.
 
-Busca ida y vuelta a Miami (MIA) desde Buenos Aires (EZE) y desde Santiago de
-Chile (SCL), saliendo desde el 5 de febrero de 2027, con regreso a más tardar el
-28 de febrero y una estadía de 10 a 13 días, para 3 adultos (el adolescente de
-14 paga tarifa de adulto) + 1 menor. Si encuentra vuelos a USD 600 o menos por
-persona, envía un mail. Los parámetros se cambian en `CONFIG` dentro de
-`buscador.py`.
+Busca pasajes a Miami (MIA o Fort Lauderdale, FLL) desde Buenos Aires (EZE o
+AEP) y desde Santiago de Chile (SCL), saliendo desde el 5 de febrero de 2027,
+con regreso a más tardar el 28 de febrero y una estadía de 10 a 13 días, para 3
+adultos (el adolescente de 14 paga tarifa de adulto) + 1 menor. Los parámetros
+se cambian en `CONFIG` dentro de `buscador.py`.
 
-## Cómo aprovecha el plan gratis de SerpApi (250 búsquedas/mes)
-Hay 100 combinaciones válidas de origen, salida y regreso. Cada día busca 7
-(≈ 210 por mes, queda margen para pruebas a mano) en un orden mezclado, para que
-cada día se prueben fechas y orígenes variados: una promo que baja muchas fechas
-se detecta enseguida. Todas las combinaciones se revisan cada 15 días.
-
-El "radar" de Google Travel Explore (1 búsqueda por origen para todo el mes)
-está desactivado (`usar_radar`): no deja fijar el regreso máximo ni la estadía,
-así que con estas fechas casi siempre elige viajes que vuelven en marzo.
+## Cómo busca
+- Busca la **ida y la vuelta por separado** (pasajes solo ida). Así puede
+  combinar la ida más barata con la vuelta más barata, aunque sean de
+  aerolíneas distintas. En las pruebas, dos pasajes separados salieron más
+  baratos que un ida y vuelta.
+- Hay 56 tramos (14 fechas de ida y 14 de vuelta por ciudad). Guarda el precio
+  más barato de cada uno en `precios.json` (en GitHub, en la caché de Actions)
+  y arma todas las combinaciones de la misma ciudad que cumplen la estadía.
+- Cada día busca los 6 tramos con el precio más viejo (≈ 180 búsquedas por mes,
+  dentro del plan gratis de SerpApi de 250). Todos se recorren cada ~10 días, y
+  los precios de más de 12 días no se usan.
+- Envía un mail si alguna combinación con algún tramo actualizado ese día cuesta
+  USD 600 o menos por persona.
 
 ## Qué hay que conectar
 1. **SerpApi** (datos de Google Flights): crear cuenta en https://serpapi.com y copiar la API key.
@@ -28,9 +31,9 @@ así que con estas fechas casi siempre elige viajes que vuelven en marzo.
 ## Probar
 ```bash
 python buscador.py --demo --no-mail        # sin credenciales, precios de ejemplo
-python buscador.py --no-mail               # búsqueda real de hoy (7 búsquedas)
-python buscador.py --todas --no-mail       # todas las fechas (100 búsquedas, usar muy poco)
+python buscador.py --no-mail               # búsqueda real de hoy (6 búsquedas)
+python buscador.py --todas --no-mail       # todos los tramos (56 búsquedas, usar muy poco)
 python buscador.py --mail-prueba           # manda un mail aunque no haya ofertas
 ```
 En GitHub: Actions → "Alerta de vuelos baratos" → *Run workflow* (se puede
-tildar el mail de prueba). Cada corrida a mano gasta 7 búsquedas.
+tildar el mail de prueba). Cada corrida a mano gasta 6 búsquedas.

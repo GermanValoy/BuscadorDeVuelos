@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+      # Precios de cada tramo guardados entre corridas.
+      - uses: actions/cache@v5
+        with:
+          path: precios.json
+          key: precios-${{ github.run_id }}
+          restore-keys: precios-
       - run: python buscador.py ${{ inputs.mail_prueba && '--mail-prueba' || '' }}
         env:
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
