@@ -12,7 +12,8 @@ on:
 
 jobs:
   buscar:
-    runs-on: ubuntu-latest
+    # Version fija: ubuntu-latest pasa a Ubuntu 26 desde el 19/10/2026.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
