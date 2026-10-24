@@ -5,7 +5,7 @@ Busca pasajes a Miami (MIA o Fort Lauderdale, FLL) desde Buenos Aires (EZE o
 AEP) y desde Santiago de Chile (SCL), saliendo desde el 1 de febrero de 2027 y
 volviendo hasta el 31 de marzo (incluye salir en febrero y volver en marzo), con
 una estadía de 7 a 21 días, para 3 adultos (el adolescente de 14 paga tarifa de
-adulto) + 1 menor. Envía por mail todas las combinaciones de USD 500 o menos por
+adulto) + 1 menor. Envía por mail todas las combinaciones de USD 600 o menos por
 persona. Los parámetros se cambian en `CONFIG` dentro de `buscador.py`.
 
 ## Cómo busca (8 búsquedas por día, ≈ 240 por mes: no correrlo a mano)
@@ -19,7 +19,7 @@ persona. Los parámetros se cambian en `CONFIG` dentro de `buscador.py`.
   barato de cada tramo se guarda en `precios.json` (en GitHub, en la caché de
   Actions) y se combinan idas y vueltas de la misma ciudad que cumplen la
   estadía. Los precios de más de 60 días no se usan.
-- **Mail**: lista todas las combinaciones de USD 500 o menos por persona, y
+- **Mail**: lista todas las combinaciones de USD 600 o menos por persona, y
   solo se envía cuando aparece una nueva o una ya avisada baja de precio.
 
 ## Qué hay que conectar
